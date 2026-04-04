@@ -68,7 +68,7 @@ example (n : ℕ) : #(triangle n) = (n + 1) * n / 2 := by
   rw [sum_range_id]; rfl
 
 example (n : ℕ) : #(triangle n) = (n + 1) * n / 2 := by
-  have : triangle n ≃ Σ i : Fin (n + 1), Fin i.val :=
+  have : triangle n ≃ Σ i : Fin (n + 1), Fin i.val := -- why do we need val here
     { toFun := by
         rintro ⟨⟨i, j⟩, hp⟩
         simp [triangle] at hp
@@ -91,17 +91,52 @@ example (n : ℕ) : #(triangle n) = (n + 1) * n / 2 := by
   let turn (p : ℕ × ℕ) : ℕ × ℕ := (n - 1 - p.1, n - p.2)
   calc 2 * #(triangle n)
       = #(triangle n) + #(triangle n) := by
-          sorry
+          omega
     _ = #(triangle n) + #(triangle n |>.image turn) := by
-          sorry
+          simp [turn]
+          rw [card_image_of_injOn]
+          intro (x₁, y₁) h₁ (x₂, y₂) h₂ h
+          simp_all [triangle]
+          omega
     _ = #(range n ×ˢ range (n + 1)) := by
-          sorry
+          rw [← card_union_of_disjoint]; swap
+          · rw [Finset.disjoint_iff_ne]
+            intro (a₁, a₂) ha (b₁, b₂) hb
+            simp_all [turn, triangle]
+            omega
+          · congr
+            ext p; simp [turn, triangle]
+            constructor
+            · rintro (h | ⟨a, b, h⟩)
+              omega
+              rw [← h.2]; omega
+            · intro h
+              by_cases h' : p.1 < p.2
+              left; omega
+              right; use n - 1 - p.1, n - p.2
+              constructor
+              omega
+              rw [Prod.mk_inj]; omega
     _ = (n + 1) * n := by
-          sorry
+          simp [mul_comm]
 
 def triangle' (n : ℕ) : Finset (ℕ × ℕ) := {p ∈ range n ×ˢ range n | p.1 ≤ p.2}
 
-example (n : ℕ) : #(triangle' n) = #(triangle n) := by sorry
+example (n : ℕ) : #(triangle' n) = #(triangle n) := by
+  have : { x // x ∈ triangle' n } ≃ { x // x ∈ triangle n } :=
+    {
+      toFun := fun ⟨⟨i, j⟩, h⟩ => ⟨⟨i, j + 1⟩, by simp_all [triangle, triangle']; omega⟩
+      invFun := fun ⟨⟨i, j⟩, h⟩ => ⟨⟨i, j - 1⟩, by simp_all [triangle, triangle']; omega⟩
+      left_inv := by intro h; rfl
+      right_inv := by
+        intro h
+        simp
+        rcases h with ⟨⟨x₁, x₂⟩, hx⟩
+        simp [triangle] at hx
+        simp
+        omega
+    }
+  apply Finset.card_eq_of_equiv this
 
 section
 open Classical
@@ -129,8 +164,14 @@ example {n : ℕ} (A : Finset ℕ)
     ∃ m ∈ A, ∃ k ∈ A, Nat.Coprime m k := by
   have : ∃ t ∈ range n, 1 < #({u ∈ A | u / 2 = t}) := by
     apply exists_lt_card_fiber_of_mul_lt_card_of_maps_to
-    · sorry
-    · sorry
+    · intro a ha
+      have := hA' ha
+      simp_all; omega
+    · simp [hA]
   rcases this with ⟨t, ht, ht'⟩
   simp only [one_lt_card, mem_filter] at ht'
-  sorry
+  rcases ht' with ⟨a, ⟨ha, ⟨b, ⟨hb, aneb⟩⟩⟩⟩
+  use a, ha.1, b, hb.1
+  have : a / 2 = b / 2 := by omega
+  have : a = b + 1 ∨ b = a + 1 := by omega
+  rcases this with rfl | rfl <;> simp
